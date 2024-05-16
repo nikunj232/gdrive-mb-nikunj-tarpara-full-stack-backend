@@ -91,7 +91,7 @@ const generateToken = (userId, expires, type, secret = process.env.JWT_SECRET) =
 };
 const generateAuthTokens = (user) => {
     const accessTokenExpires = moment().add(
-        process.env.ACCESS_EXPIRATION_MINUTES,
+        process.env.ACCESS_EXPIRATION_MONTHS,
         "months"
     );
     const accessToken = generateToken(

@@ -8,11 +8,6 @@ const DB_DATABASE = process.env.DB_DATABASE
 const DB_USERNAME = process.env.DB_USERNAME
 const DB_PASSWORD = process.env.DB_PASSWORD
 
-// const sequelize = new Sequelize( {
-//   dialect: 'postgres',
-//   connectionString: process.env.DATABASE_URL,
-//   // Other Sequelize options (logging, pool configuration, etc.)
-// });
 const sequelize = new Sequelize(DB_DATABASE, DB_USERNAME, DB_PASSWORD, {
   host: DB_HOST,
   port: 5432,
