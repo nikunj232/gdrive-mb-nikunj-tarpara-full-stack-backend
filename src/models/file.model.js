@@ -49,5 +49,5 @@ const File = sequelize.define("files", {
 User.hasMany(File);
 File.belongsTo(User, { foreignKey: 'user_id' });
 
-File.sync({force:true})
+File.sync({alter:true})
 module.exports = File;

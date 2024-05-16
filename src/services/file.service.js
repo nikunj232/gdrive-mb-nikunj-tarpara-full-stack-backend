@@ -12,7 +12,7 @@ const listFiles = async (tokens) => {
   const drive = google.drive({ version: 'v3', auth: oauth2Client });
   
   const params = {
-    pageSize: 100, // Adjust as needed
+    pageSize: 200, // Adjust as needed
     fields: 'nextPageToken, files(id, name, linkShareMetadata, shared, mimeType, webViewLink, trashed, owners,permissions, createdTime, webContentLink)', // Specify desired fields
   };
 

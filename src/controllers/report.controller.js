@@ -4,6 +4,7 @@ const catchAsync = require("../utils/catchAsync");
 const { userService, tokenService, fileService, permissionService } = require("../services");
 const { oauth2Client } = require("../config/oauthClient");
 const { Op } = require("sequelize");
+const ApiError = require("../utils/ApiError");
 
 const roleRiskScoreRank = {
     "owner.user":4,
@@ -21,26 +22,54 @@ const roleRiskScoreRank = {
 }
 const getRiskReport = catchAsync(async(req, res) => {
     const user = req.user
-    const userDoc = user
-    
-    const tokenDoc = await tokenService.findToken({user_id: user.id})
-    if (!tokenDoc && !tokenDoc.id) {
+    // const userDoc = user
+    const userDoc = await userService.getUserByEmail(user.email)
+    if (!userDoc && !userDoc?.id) {
         throw Error("User's token not found!")
+    }
+    console.log(user, "=====user========",userDoc);
+    
+    const tokenDoc = await tokenService.findToken({user_id: userDoc.id})
+    if (!tokenDoc && !tokenDoc?.id) {
+        throw ApiError(httpStatus.UNAUTHORIZED, "User's token not found!")
     }
     
     const files = await fileService.listFiles({access_token: tokenDoc.access_token, refresh_token: tokenDoc.refresh_token})
 
-    const fileData = files.filter(file => {
+    const fileData = files.filter((file, i) => {
         return file.permissions ? file.permissions?.some(perm => perm.type === 'anyone'): false;
-    }).map(file=> {
-        // const amIOwner = file.owners[0].emailAddress === 
+    }).map((file, i)=> {         
         return {
             ...file,
-            sharedWith: file.permissions?.length - 1 
+            sharedWith: file.permissions?.length - 1,
         }
     })
 
 
+    const externallySharedFile = files.filter(file => {
+        const isExternal = file.permissions ? file.permissions?.some((perm, i) => {
+            if (perm.type === 'user') {
+                let permEmailArr = perm?.emailAddress?.split('@')
+                let userEmailArr = userDoc?.email?.split('@')
+                console.log(permEmailArr[1] !== userEmailArr[1], permEmailArr[1], userEmailArr[1], i, "is external file");
+                return permEmailArr[1] !== userEmailArr[1]
+            }else {
+                return false
+            }
+        }): false
+        return isExternal
+    }).map((file, i)=> {         
+        const isPublic = file.permissions ? file.permissions?.some(perm => perm.type === 'anyone'): false
+        return {
+            ...file,
+            filename: file.name,
+            web_view_link: file.webViewLink,
+            type: file.mimeType,
+            owner: file.owners[0],
+            user_id: userDoc.id,
+            shared_with: isPublic ? file.permissions?.length - 1 : file.permissions?.length,
+        }
+    })
     const openWritingFile = files.filter(file => {
         return file.permissions ? file.permissions?.some(perm => perm.type === 'anyone' && perm.role === 'writer'): false;
     }).map(file=> {
@@ -89,16 +118,18 @@ const getRiskReport = catchAsync(async(req, res) => {
     
     let permissionsUser = []
     createdPermissionData.forEach(permission => {
-        const tempUserExistIndex = permissionsUser.findIndex(user => permission.email === user.email)
-        if(tempUserExistIndex > -1){
-            permissionsUser[tempUserExistIndex].fileId = [...permissionsUser[tempUserExistIndex].fileId, permission.file_id]
-        }else{
-            permissionsUser.push({
-                email: permission.email,
-                display_name: permission.display_name,
-                photo: permission.photo,
-                fileId: [permission.file_id]
-            })
+        if (permission.email !== userDoc.email) {
+            const tempUserExistIndex = permissionsUser.findIndex(user => permission.email === user.email)
+            if(tempUserExistIndex > -1){
+                permissionsUser[tempUserExistIndex].fileId = [...permissionsUser[tempUserExistIndex].fileId, permission.file_id]
+            }else{
+                permissionsUser.push({
+                    email: permission.email,
+                    display_name: permission.display_name,
+                    photo: permission.photo,
+                    fileId: [permission.file_id]
+                })
+            }
         }
     }) 
     const permissionsUserData = await Promise.all(permissionsUser.map(async(user) => {
@@ -122,19 +153,25 @@ const getRiskReport = catchAsync(async(req, res) => {
             })
         }
     })
-    let totalRiskScore = roleRiskArrRes * 4 
-    let actualRiskScore = roleRiskArrRes.reduce((sum, item) => {
-        sum + item
+    let totalRiskScore = roleRiskArrRes.length * 4 
+    let actualRiskScore = roleRiskArrRes.reduce((accumulator, item) => {
+        return accumulator + item
     }, 0)
+    console.log(actualRiskScore, "actual price");
     const percentageRiskScore = (actualRiskScore/totalRiskScore)*100
     res.json({ 
         data: {
             roleRiskArrRes,
-            percentageRiskScore,
-            userAccessFile: permissionsUserData,
-            totalUserAccess: permissionsUserData?.length,
-            publicFile: createdFileData,
-            totalPublicFile: createdFileData.length, 
+            percentageRiskScore: Number(percentageRiskScore).toFixed(0),
+            actualRiskScore,
+            totalRiskScore,
+            riskScore: percentageRiskScore >= 70 ? "High" : percentageRiskScore >= 35? "Medium": "Low",
+            totalExternallySharedFile: externallySharedFile?.length ?? 0,
+            externallySharedFile: externallySharedFile,
+            userAccessFile: permissionsUserData ?? [],
+            totalUserAccess: permissionsUserData?.length ?? 0,
+            publicFile: createdFileData ?? [],
+            totalPublicFile: createdFileData.length ?? 0, 
             // createdPermissionData, 
         },
         message: "data get successfully"})

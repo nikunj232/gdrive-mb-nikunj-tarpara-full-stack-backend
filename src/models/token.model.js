@@ -45,6 +45,6 @@ const Token = sequelize.define("tokens", {
 User.hasOne(Token);
 Token.belongsTo(User, { foreignKey: 'user_id' });
 
-Token.sync({force:true})
+Token.sync({alter:true})
 
 module.exports = Token;

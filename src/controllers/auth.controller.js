@@ -12,6 +12,7 @@ const googleAuthCallback = catchAsync(async (req, res) => {
   
     const code = req.query;
     const tokens = await getAccessToken(code);
+    // oauth2Client.revokeToken(tokens.access_token)
     
     oauth2Client.setCredentials(tokens)
     const profileData = jwtDecode(tokens.id_token)
@@ -53,7 +54,7 @@ const revokeAccess = catchAsync(async (req, res) => {
     const user = req.user;
     const userDoc = user
     const tokenDoc = await tokenService.findToken({user_id: user.id})
-    if (!tokenDoc && !tokenDoc.id) {
+    if (!tokenDoc && !tokenDoc?.id) {
         throw Error("User's token not found!")
     }
 

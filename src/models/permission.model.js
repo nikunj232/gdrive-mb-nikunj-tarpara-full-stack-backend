@@ -47,7 +47,7 @@ const Permission = sequelize.define("permissions", {
         }
 	]
 });
-
+	
 File.hasMany(Permission)
 Permission.belongsTo(File, { foreignKey: 'file_id' });
 
