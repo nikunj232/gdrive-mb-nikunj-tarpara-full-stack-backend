@@ -1,7 +1,7 @@
 const { google } = require("googleapis");
 const { oauth2Client } = require("../config/oauthClient");
 const { File, Permission, User } = require("../models");
-const { Sequelize, QueryInterface } = require("sequelize");
+const { Sequelize, QueryInterface, Op } = require("sequelize");
 const sequelize = require("../config/database");
 
 
@@ -63,10 +63,24 @@ const findMultipleFile = async (query) => {
   }
 }
 
-const deleteMultipleFile = async (query) => {
+const deleteMultipleFile = async (userId) => {
   try {
+    // const deletePermission
+    const existFileData = await findMultipleFile({user_id: userId})
+    const toBeDeleteFileId = existFileData.map(file => file.id) 
+    
+    const deletedPermissionData =  await Permission.destroy({
+      where: {
+        file_id: {
+          [Op.in] : toBeDeleteFileId
+        }
+      }
+    })
+
     const deletedFileData =  await File.destroy({
-      where: query
+      where: {
+        user_id: userId
+      }
     })
     return deletedFileData
     

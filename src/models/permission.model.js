@@ -52,7 +52,7 @@ File.hasMany(Permission)
 Permission.belongsTo(File, { foreignKey: 'file_id' });
 
 // User.hasMany(File, { foreignKey: 'drive_user_id' });
-// Permission.belongsTo(User, { foreignKey: 'drive_user_id' });
+Permission.belongsTo(User, { foreignKey: 'drive_user_id' });
 
 Permission.sync({alter: true})
 module.exports = Permission;

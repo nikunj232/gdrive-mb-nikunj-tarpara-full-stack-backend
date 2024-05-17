@@ -27,7 +27,6 @@ const getRiskReport = catchAsync(async(req, res) => {
     if (!userDoc && !userDoc?.id) {
         throw Error("User's token not found!")
     }
-    console.log(user, "=====user========",userDoc);
     
     const tokenDoc = await tokenService.findToken({user_id: userDoc.id})
     if (!tokenDoc && !tokenDoc?.id) {
@@ -70,15 +69,6 @@ const getRiskReport = catchAsync(async(req, res) => {
             shared_with: isPublic ? file.permissions?.length - 1 : file.permissions?.length,
         }
     })
-    const openWritingFile = files.filter(file => {
-        return file.permissions ? file.permissions?.some(perm => perm.type === 'anyone' && perm.role === 'writer'): false;
-    }).map(file=> {
-        // const amIOwner = file.owners[0].emailAddress === 
-        return {
-            ...file,
-            sharedWith: file.permissions?.length - 1 
-        }
-    }) 
 
     const fileTobeCreated = fileData.map(file => {
         return {
@@ -91,8 +81,7 @@ const getRiskReport = catchAsync(async(req, res) => {
         }
     }) 
     
-    // const fileExistedData = await fileService.findMultipleFile({user_id: userDoc.id})
-    const deletedFileData = await fileService.deleteMultipleFile({user_id: userDoc.id})
+    const deletedFileData = await fileService.deleteMultipleFile(userDoc.id)
     const createdFileData = await fileService.createMultipleFile(fileTobeCreated)
     
     let permissionTobeCreated = []
@@ -113,7 +102,6 @@ const getRiskReport = catchAsync(async(req, res) => {
         
     })
 
-    const deletedPermissionData = await permissionService.deleteMultiplePermission({drive_user_id: userDoc.id})
     const createdPermissionData = await permissionService.createMultiplePermission(permissionTobeCreated)
     
     let permissionsUser = []
@@ -132,6 +120,7 @@ const getRiskReport = catchAsync(async(req, res) => {
             }
         }
     }) 
+
     const permissionsUserData = await Promise.all(permissionsUser.map(async(user) => {
         const tempFilesData = await fileService.findMultipleFile({
             id: {
@@ -157,10 +146,10 @@ const getRiskReport = catchAsync(async(req, res) => {
     let actualRiskScore = roleRiskArrRes.reduce((accumulator, item) => {
         return accumulator + item
     }, 0)
-    console.log(actualRiskScore, "actual price");
     const percentageRiskScore = (actualRiskScore/totalRiskScore)*100
     res.json({ 
         data: {
+            deletedFileData,
             roleRiskArrRes,
             percentageRiskScore: Number(percentageRiskScore).toFixed(0),
             actualRiskScore,
@@ -172,7 +161,6 @@ const getRiskReport = catchAsync(async(req, res) => {
             totalUserAccess: permissionsUserData?.length ?? 0,
             publicFile: createdFileData ?? [],
             totalPublicFile: createdFileData.length ?? 0, 
-            // createdPermissionData, 
         },
         message: "data get successfully"})
 })
